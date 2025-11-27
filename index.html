@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Set Card Game Trainer</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Set Card Game Trainer</h1>
+        
+        <div class="instructions">
+            <h2>How to Play</h2>
+            <p>Two cards are shown. Find the third card that completes the set!</p>
+            <p>Enter your answer using the first letter of each attribute (order doesn't matter):</p>
+            <ul>
+                <li>Number: 1, 2, 3</li>
+                <li>Color: r (red), p (purple), g (green)</li>
+                <li>Shape: o (oval), d (diamond), w (wave)</li>
+                <li>Pattern: f (filled), s (striped), e (empty)</li>
+            </ul>
+            <p>Example: <strong>1,f,r,w</strong> or <strong>1frw</strong> = 1 filled red wave</p>
+        </div>
+
+        <div class="game-area">
+            <h2>Find the completing card:</h2>
+            
+            <div class="cards-display">
+                <div class="card-container">
+                    <div id="card1" class="card"></div>
+                </div>
+                <div class="card-container">
+                    <div id="card2" class="card"></div>
+                </div>
+            </div>
+
+            <div class="input-area">
+                <label for="answer">Your answer:</label>
+                <input type="text" id="answer" placeholder="e.g., 1frw or 1,f,r,w" autocomplete="off">
+                <button id="submit-btn">Submit</button>
+                <button id="new-cards-btn">New Cards</button>
+            </div>
+
+            <div id="feedback" class="feedback"></div>
+            
+            <div id="solution-area" class="solution-area" style="display: none;">
+                <h3>The completing card is:</h3>
+                <div class="card-container">
+                    <div id="solution-card" class="card"></div>
+                    <p id="solution-desc" class="card-description"></p>
+                </div>
+            </div>
+        </div>
+
+        <div class="stats">
+            <p>Correct: <span id="correct-count">0</span> | Incorrect: <span id="incorrect-count">0</span></p>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
