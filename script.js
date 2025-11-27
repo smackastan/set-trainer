@@ -23,6 +23,10 @@ let currentCards = [];
 let correctCard = null;
 let stats = { correct: 0, incorrect: 0 };
 
+// Multiple choice mode variables
+let multipleChoiceMode = false;
+let multipleChoiceOptions = [];
+
 // Challenge mode variables
 let challengeMode = false;
 let challengeStartTime = null;
@@ -74,6 +78,43 @@ function isValidSet(card1, card2, card3) {
         }
     }
     return true;
+}
+
+// Generate all possible cards (81 total)
+function generateAllCards() {
+    const allCards = [];
+    for (let number of ATTRIBUTES.number) {
+        for (let color of ATTRIBUTES.color) {
+            for (let shape of ATTRIBUTES.shape) {
+                for (let pattern of ATTRIBUTES.pattern) {
+                    allCards.push({ number, color, shape, pattern });
+                }
+            }
+        }
+    }
+    return allCards;
+}
+
+// Generate 12 multiple choice options including the correct answer
+function generateMultipleChoiceOptions(correctCard) {
+    const allCards = generateAllCards();
+    
+    // Filter out the correct card and the two shown cards
+    const availableCards = allCards.filter(card => 
+        !cardsEqual(card, correctCard) && 
+        !cardsEqual(card, currentCards[0]) && 
+        !cardsEqual(card, currentCards[1])
+    );
+    
+    // Shuffle and take 11 random cards
+    const shuffled = availableCards.sort(() => Math.random() - 0.5);
+    const options = shuffled.slice(0, 11);
+    
+    // Add the correct card
+    options.push(correctCard);
+    
+    // Shuffle again so correct answer is in random position
+    return options.sort(() => Math.random() - 0.5);
 }
 
 // Draw a shape on SVG
@@ -165,6 +206,25 @@ function drawCard(card, elementId) {
     element.appendChild(svg);
 }
 
+// Draw a smaller card for multiple choice
+function drawCardSmall(card, elementId) {
+    const element = document.getElementById(elementId);
+    element.innerHTML = '';
+    
+    const svgNS = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(svgNS, 'svg');
+    svg.setAttribute('viewBox', '0 0 160 120');
+    svg.setAttribute('width', '100');
+    svg.setAttribute('height', '75');
+    
+    for (let i = 0; i < card.number; i++) {
+        const shape = createShape(card.shape, card.color, card.pattern, i, card.number);
+        svg.appendChild(shape);
+    }
+    
+    element.appendChild(svg);
+}
+
 // Get card description
 function getCardDescription(card) {
     return `${card.number} ${card.pattern} ${card.color} ${card.shape}${card.number > 1 ? 's' : ''}`;
@@ -212,6 +272,130 @@ function cardsEqual(card1, card2) {
            card1.pattern === card2.pattern;
 }
 
+// Display multiple choice options
+function displayMultipleChoiceOptions() {
+    const container = document.getElementById('multiple-choice-container');
+    container.innerHTML = '';
+    
+    multipleChoiceOptions.forEach((card, index) => {
+        const optionDiv = document.createElement('div');
+        optionDiv.className = 'multiple-choice-option';
+        optionDiv.setAttribute('data-index', index);
+        
+        const cardDiv = document.createElement('div');
+        cardDiv.className = 'card-small';
+        cardDiv.id = `option-card-${index}`;
+        
+        optionDiv.appendChild(cardDiv);
+        container.appendChild(optionDiv);
+        
+        // Draw the card
+        drawCardSmall(card, `option-card-${index}`);
+        
+        // Add click handler
+        optionDiv.addEventListener('click', () => selectMultipleChoiceOption(index));
+    });
+}
+
+// Handle multiple choice selection
+function selectMultipleChoiceOption(index) {
+    const selectedCard = multipleChoiceOptions[index];
+    
+    // Visual feedback
+    const allOptions = document.querySelectorAll('.multiple-choice-option');
+    allOptions.forEach(opt => opt.classList.remove('selected'));
+    allOptions[index].classList.add('selected');
+    
+    // Check if correct
+    const feedbackEl = document.getElementById('feedback');
+    const solutionArea = document.getElementById('solution-area');
+    
+    if (cardsEqual(selectedCard, correctCard)) {
+        feedbackEl.textContent = '✓ Correct! Well done!';
+        feedbackEl.className = 'feedback correct';
+        stats.correct++;
+        
+        allOptions[index].classList.add('correct');
+        
+        // Update stats
+        document.getElementById('correct-count').textContent = stats.correct;
+        document.getElementById('incorrect-count').textContent = stats.incorrect;
+        
+        // Handle challenge mode
+        if (challengeMode) {
+            challengeCorrectCount++;
+            document.getElementById('challenge-progress').textContent = challengeCorrectCount;
+            
+            if (challengeCorrectCount >= challengeTarget) {
+                const endTime = Date.now();
+                const totalTime = ((endTime - challengeStartTime) / 1000).toFixed(2);
+                
+                let message = `🎉 Challenge Complete! Time: ${totalTime}s`;
+                
+                const bestTimeKey = challengeTarget === 5 ? 'bestTime5' : 'bestTime';
+                const currentBest = challengeTarget === 5 ? bestTime5 : bestTime;
+                
+                if (!currentBest || totalTime < currentBest) {
+                    if (challengeTarget === 5) {
+                        bestTime5 = totalTime;
+                        localStorage.setItem('bestTime5', bestTime5);
+                        document.getElementById('best-time-5').textContent = bestTime5 + 's';
+                    } else {
+                        bestTime = totalTime;
+                        localStorage.setItem('bestTime', bestTime);
+                        document.getElementById('best-time').textContent = bestTime + 's';
+                    }
+                    message += ` - NEW RECORD! 🏆`;
+                } else {
+                    message += ` (Best: ${currentBest}s)`;
+                }
+                
+                feedbackEl.textContent = message;
+                challengeMode = false;
+                document.getElementById('challenge-info').style.display = 'none';
+                document.getElementById('start-challenge-btn').style.display = 'inline-block';
+                document.getElementById('start-challenge-5-btn').style.display = 'inline-block';
+                
+                setTimeout(() => {
+                    newRound();
+                }, 3000);
+                return;
+            }
+        }
+        
+        // Generate new cards after a short delay
+        setTimeout(() => {
+            newRound();
+        }, challengeMode ? 800 : 1500);
+    } else {
+        feedbackEl.textContent = '✗ Incorrect. Try again!';
+        feedbackEl.className = 'feedback incorrect';
+        stats.incorrect++;
+        
+        allOptions[index].classList.add('incorrect');
+        
+        // Handle challenge mode - end it on incorrect answer
+        if (challengeMode) {
+            feedbackEl.textContent = '✗ Challenge Failed! Starting over...';
+            challengeMode = false;
+            document.getElementById('challenge-info').style.display = 'none';
+            document.getElementById('start-challenge-btn').style.display = 'inline-block';
+            document.getElementById('start-challenge-5-btn').style.display = 'inline-block';
+            
+            // Show correct answer
+            multipleChoiceOptions.forEach((card, i) => {
+                if (cardsEqual(card, correctCard)) {
+                    allOptions[i].classList.add('correct-answer');
+                }
+            });
+        }
+        
+        // Update stats
+        document.getElementById('correct-count').textContent = stats.correct;
+        document.getElementById('incorrect-count').textContent = stats.incorrect;
+    }
+}
+
 // Initialize new round
 function newRound() {
     // Generate two random cards
@@ -223,6 +407,12 @@ function newRound() {
     // Draw cards
     drawCard(currentCards[0], 'card1');
     drawCard(currentCards[1], 'card2');
+    
+    // Generate multiple choice options if in that mode
+    if (multipleChoiceMode) {
+        multipleChoiceOptions = generateMultipleChoiceOptions(correctCard);
+        displayMultipleChoiceOptions();
+    }
     
     // Clear feedback and solution
     document.getElementById('feedback').textContent = '';
@@ -352,6 +542,27 @@ function startChallenge(target = 10) {
     }, 2000);
 }
 
+// Toggle between text input and multiple choice mode
+function toggleMode() {
+    multipleChoiceMode = !multipleChoiceMode;
+    
+    const textInputArea = document.getElementById('text-input-area');
+    const multipleChoiceArea = document.getElementById('multiple-choice-area');
+    const toggleBtn = document.getElementById('toggle-mode-btn');
+    
+    if (multipleChoiceMode) {
+        textInputArea.style.display = 'none';
+        multipleChoiceArea.style.display = 'block';
+        toggleBtn.textContent = '⌨️ Switch to Text Input';
+    } else {
+        textInputArea.style.display = 'block';
+        multipleChoiceArea.style.display = 'none';
+        toggleBtn.textContent = '🎯 Switch to Multiple Choice';
+    }
+    
+    newRound();
+}
+
 // Event listeners
 document.getElementById('submit-btn').addEventListener('click', checkAnswer);
 document.getElementById('new-cards-btn').addEventListener('click', newRound);
@@ -362,6 +573,7 @@ document.getElementById('answer').addEventListener('keypress', (e) => {
         checkAnswer();
     }
 });
+document.getElementById('toggle-mode-btn').addEventListener('click', toggleMode);
 
 // Initialize
 newRound();

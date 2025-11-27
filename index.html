@@ -35,11 +35,20 @@
                 </div>
             </div>
 
-            <div class="input-area">
+            <div class="mode-toggle">
+                <button id="toggle-mode-btn" class="toggle-btn">🎯 Switch to Multiple Choice</button>
+            </div>
+
+            <div id="text-input-area" class="input-area">
                 <label for="answer">Your answer:</label>
                 <input type="text" id="answer" placeholder="e.g., 1frw or 1,f,r,w" autocomplete="off">
                 <button id="submit-btn">Submit</button>
                 <button id="new-cards-btn">New Cards</button>
+            </div>
+
+            <div id="multiple-choice-area" class="multiple-choice-area" style="display: none;">
+                <h3>Select the completing card:</h3>
+                <div id="multiple-choice-container" class="multiple-choice-container"></div>
             </div>
 
             <div class="challenge-section">
