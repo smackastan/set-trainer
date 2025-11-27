@@ -23,6 +23,14 @@ let currentCards = [];
 let correctCard = null;
 let stats = { correct: 0, incorrect: 0 };
 
+// Challenge mode variables
+let challengeMode = false;
+let challengeStartTime = null;
+let challengeCorrectCount = 0;
+let challengeTarget = 10; // Target number of correct answers
+let bestTime = localStorage.getItem('bestTime') ? parseFloat(localStorage.getItem('bestTime')) : null;
+let bestTime5 = localStorage.getItem('bestTime5') ? parseFloat(localStorage.getItem('bestTime5')) : null;
+
 // Generate a random card
 function generateRandomCard() {
     return {
@@ -90,9 +98,16 @@ function createShape(shape, color, pattern, index, total) {
         shapeElement.setAttribute('points', points);
     } else if (shape === 'wave') {
         shapeElement = document.createElementNS(svgNS, 'path');
-        const path = `M 45,${15 + yOffset} Q 55,${5 + yOffset} 65,${15 + yOffset} T 85,${15 + yOffset} T 105,${15 + yOffset} T 115,${15 + yOffset}`;
+        // Scale and position the tilde/wave shape from the SVG
+        const scale = 5.8; // Scale up the 12x8 viewbox
+        const centerX = 80;
+        const centerY = 15 + yOffset;
+        const offsetX = centerX - (12 * scale / 2);
+        const offsetY = centerY - (8 * scale / 2);
+        
+        // Transform the original path coordinates
+        const path = `M${2*scale + offsetX},${6.3*scale + offsetY}C${1.4*scale + offsetX},${6.3*scale + offsetY},${0.9*scale + offsetX},${6*scale + offsetY},${0.5*scale + offsetX},${5.5*scale + offsetY}C${0*scale + offsetX},${4.7*scale + offsetY},${0.2*scale + offsetX},${3.6*scale + offsetY},${1*scale + offsetX},${3*scale + offsetY}c${1.9*scale},${-1.3*scale},${4*scale},${-1.7*scale},${6*scale},${-0.6*scale}c${0.7*scale},${0.4*scale},${1.3*scale},${0.2*scale},${1.9*scale},${-0.3*scale}c${0.7*scale},${-0.6*scale},${1.8*scale},${-0.5*scale},${2.5*scale},${0.2*scale}c${0.6*scale},${0.7*scale},${0.5*scale},${1.8*scale},${-0.2*scale},${2.5*scale}C${9.4*scale + offsetX},${6.3*scale + offsetY},${7.3*scale + offsetX},${6.6*scale + offsetY},${5.3*scale + offsetX},${5.5*scale + offsetY}C${4.5*scale + offsetX},${5.1*scale + offsetY},${3.7*scale + offsetX},${5.4*scale + offsetY},${3*scale + offsetX},${6*scale + offsetY}C${2.7*scale + offsetX},${6.2*scale + offsetY},${2.3*scale + offsetX},${6.3*scale + offsetY},${2*scale + offsetX},${6.3*scale + offsetY}z`;
         shapeElement.setAttribute('d', path);
-        shapeElement.setAttribute('fill', 'none');
     }
     
     shapeElement.setAttribute('stroke', colorHex);
@@ -239,14 +254,66 @@ function checkAnswer() {
         document.getElementById('correct-count').textContent = stats.correct;
         document.getElementById('incorrect-count').textContent = stats.incorrect;
         
+        // Handle challenge mode
+        if (challengeMode) {
+            challengeCorrectCount++;
+            document.getElementById('challenge-progress').textContent = challengeCorrectCount;
+            
+            if (challengeCorrectCount >= challengeTarget) {
+                const endTime = Date.now();
+                const totalTime = ((endTime - challengeStartTime) / 1000).toFixed(2);
+                
+                let message = `🎉 Challenge Complete! Time: ${totalTime}s`;
+                
+                // Check and save best time based on challenge type
+                const bestTimeKey = challengeTarget === 5 ? 'bestTime5' : 'bestTime';
+                const currentBest = challengeTarget === 5 ? bestTime5 : bestTime;
+                
+                if (!currentBest || totalTime < currentBest) {
+                    if (challengeTarget === 5) {
+                        bestTime5 = totalTime;
+                        localStorage.setItem('bestTime5', bestTime5);
+                        document.getElementById('best-time-5').textContent = bestTime5 + 's';
+                    } else {
+                        bestTime = totalTime;
+                        localStorage.setItem('bestTime', bestTime);
+                        document.getElementById('best-time').textContent = bestTime + 's';
+                    }
+                    message += ` - NEW RECORD! 🏆`;
+                } else {
+                    message += ` (Best: ${currentBest}s)`;
+                }
+                
+                feedbackEl.textContent = message;
+                challengeMode = false;
+                document.getElementById('challenge-info').style.display = 'none';
+                document.getElementById('start-challenge-btn').style.display = 'inline-block';
+                document.getElementById('start-challenge-5-btn').style.display = 'inline-block';
+                
+                setTimeout(() => {
+                    newRound();
+                }, 3000);
+                return;
+            }
+        }
+        
         // Generate new cards after a short delay
         setTimeout(() => {
             newRound();
-        }, 1500);
+        }, challengeMode ? 800 : 1500);
     } else {
         feedbackEl.textContent = '✗ Incorrect. Here\'s the correct answer:';
         feedbackEl.className = 'feedback incorrect';
         stats.incorrect++;
+        
+        // Handle challenge mode - end it on incorrect answer
+        if (challengeMode) {
+            feedbackEl.textContent = '✗ Challenge Failed! Starting over...';
+            challengeMode = false;
+            document.getElementById('challenge-info').style.display = 'none';
+            document.getElementById('start-challenge-btn').style.display = 'inline-block';
+            document.getElementById('start-challenge-5-btn').style.display = 'inline-block';
+        }
         
         // Show solution
         solutionArea.style.display = 'block';
@@ -259,9 +326,37 @@ function checkAnswer() {
     }
 }
 
+// Start challenge mode
+function startChallenge(target = 10) {
+    challengeMode = true;
+    challengeStartTime = Date.now();
+    challengeCorrectCount = 0;
+    challengeTarget = target;
+    
+    document.getElementById('challenge-info').style.display = 'block';
+    document.getElementById('challenge-progress').textContent = '0';
+    document.getElementById('challenge-target').textContent = target;
+    document.getElementById('start-challenge-btn').style.display = 'none';
+    document.getElementById('start-challenge-5-btn').style.display = 'none';
+    
+    newRound();
+    
+    const feedbackEl = document.getElementById('feedback');
+    feedbackEl.textContent = `⏱️ Challenge Started! Complete ${target} cards as fast as you can!`;
+    feedbackEl.className = 'feedback';
+    feedbackEl.style.color = '#667eea';
+    
+    setTimeout(() => {
+        feedbackEl.textContent = '';
+        feedbackEl.style.color = '';
+    }, 2000);
+}
+
 // Event listeners
 document.getElementById('submit-btn').addEventListener('click', checkAnswer);
 document.getElementById('new-cards-btn').addEventListener('click', newRound);
+document.getElementById('start-challenge-btn').addEventListener('click', () => startChallenge(10));
+document.getElementById('start-challenge-5-btn').addEventListener('click', () => startChallenge(5));
 document.getElementById('answer').addEventListener('keypress', (e) => {
     if (e.key === 'Enter') {
         checkAnswer();
@@ -270,3 +365,11 @@ document.getElementById('answer').addEventListener('keypress', (e) => {
 
 // Initialize
 newRound();
+
+// Display best times if they exist
+if (bestTime) {
+    document.getElementById('best-time').textContent = bestTime + 's';
+}
+if (bestTime5) {
+    document.getElementById('best-time-5').textContent = bestTime5 + 's';
+}

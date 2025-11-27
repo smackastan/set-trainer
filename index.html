@@ -42,6 +42,16 @@
                 <button id="new-cards-btn">New Cards</button>
             </div>
 
+            <div class="challenge-section">
+                <button id="start-challenge-5-btn" class="challenge-btn">⚡ 5-Card Sprint</button>
+                <button id="start-challenge-btn" class="challenge-btn">⏱️ 10-Card Challenge</button>
+                <div id="challenge-info" class="challenge-info" style="display: none;">
+                    <h3>Challenge Mode Active!</h3>
+                    <p>Progress: <span id="challenge-progress">0</span> / <span id="challenge-target">10</span></p>
+                    <p class="challenge-warning">⚠️ One wrong answer ends the challenge!</p>
+                </div>
+            </div>
+
             <div id="feedback" class="feedback"></div>
             
             <div id="solution-area" class="solution-area" style="display: none;">
@@ -55,6 +65,8 @@
 
         <div class="stats">
             <p>Correct: <span id="correct-count">0</span> | Incorrect: <span id="incorrect-count">0</span></p>
+            <p class="best-time">Best 5-Card Time: <span id="best-time-5">--</span></p>
+            <p class="best-time">Best 10-Card Time: <span id="best-time">--</span></p>
         </div>
     </div>
 
