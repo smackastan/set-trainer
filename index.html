@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Set Card Game Trainer</title>
     <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
 </head>
 <body>
     <div class="container">
@@ -24,19 +25,49 @@
         </div>
 
         <div class="game-area">
-            <h2>Find the completing card:</h2>
-            
-            <div class="cards-display">
-                <div class="card-container">
-                    <div id="card1" class="card"></div>
+            <div class="mode-selector">
+                <button id="trainer-mode-btn" class="mode-btn active">🎯 Trainer Mode</button>
+                <button id="practice-set-mode-btn" class="mode-btn">🃏 Practice Set</button>
+            </div>
+
+            <div id="trainer-mode-area">
+                <h2>Find the completing card:</h2>
+                
+                <div class="cards-display">
+                    <div class="card-container">
+                        <div id="card1" class="card"></div>
+                    </div>
+                    <div class="card-container">
+                        <div id="card2" class="card"></div>
+                    </div>
                 </div>
-                <div class="card-container">
-                    <div id="card2" class="card"></div>
+
+                <div class="mode-toggle">
+                    <button id="toggle-mode-btn" class="toggle-btn">🎯 Switch to Multiple Choice</button>
                 </div>
             </div>
 
-            <div class="mode-toggle">
-                <button id="toggle-mode-btn" class="toggle-btn">🎯 Switch to Multiple Choice</button>
+            <div id="practice-set-area" style="display: none;">
+                <h2>Find a Set!</h2>
+                
+                <div class="practice-controls">
+                    <label for="card-count">Number of cards:</label>
+                    <select id="card-count">
+                        <option value="4">4</option>
+                        <option value="6">6</option>
+                        <option value="9" selected>9</option>
+                        <option value="12">12</option>
+                        <option value="15">15</option>
+                    </select>
+                    <button id="new-practice-game-btn" class="new-game-btn">New Game</button>
+                </div>
+
+                <div id="practice-cards-display" class="practice-cards-display"></div>
+                
+                <div class="selected-cards-display">
+                    <p>Selected Cards: <span id="selected-count">0</span>/3</p>
+                    <button id="clear-selection-btn" class="clear-btn" style="display: none;">Clear Selection</button>
+                </div>
             </div>
 
             <div id="text-input-area" class="input-area">
@@ -76,6 +107,12 @@
             <p>Correct: <span id="correct-count">0</span> | Incorrect: <span id="incorrect-count">0</span></p>
             <p class="best-time">Best 5-Card Time: <span id="best-time-5">--</span></p>
             <p class="best-time">Best 10-Card Time: <span id="best-time">--</span></p>
+            <div class="confetti-toggle-container">
+                <label class="confetti-toggle-label">
+                    <input type="checkbox" id="confetti-toggle" checked>
+                    <span>🎉 Confetti on Correct</span>
+                </label>
+            </div>
         </div>
     </div>
 

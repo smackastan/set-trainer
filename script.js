@@ -27,6 +27,12 @@ let stats = { correct: 0, incorrect: 0 };
 let multipleChoiceMode = false;
 let multipleChoiceOptions = [];
 
+// Practice Set mode variables
+let practiceSetMode = false;
+let practiceCards = [];
+let selectedPracticeCards = [];
+let practiceCardCount = 9;
+
 // Challenge mode variables
 let challengeMode = false;
 let challengeStartTime = null;
@@ -34,6 +40,9 @@ let challengeCorrectCount = 0;
 let challengeTarget = 10; // Target number of correct answers
 let bestTime = localStorage.getItem('bestTime') ? parseFloat(localStorage.getItem('bestTime')) : null;
 let bestTime5 = localStorage.getItem('bestTime5') ? parseFloat(localStorage.getItem('bestTime5')) : null;
+
+// Confetti setting
+let confettiEnabled = localStorage.getItem('confettiEnabled') !== 'false'; // Default to true
 
 // Generate a random card
 function generateRandomCard() {
@@ -99,12 +108,32 @@ function generateAllCards() {
 function generateMultipleChoiceOptions(correctCard) {
     const allCards = generateAllCards();
     
-    // Filter out the correct card and the two shown cards
-    const availableCards = allCards.filter(card => 
-        !cardsEqual(card, correctCard) && 
-        !cardsEqual(card, currentCards[0]) && 
-        !cardsEqual(card, currentCards[1])
-    );
+    // Find shared attributes between the two shown cards
+    const sharedAttributes = {};
+    for (let attr in currentCards[0]) {
+        if (currentCards[0][attr] === currentCards[1][attr]) {
+            sharedAttributes[attr] = currentCards[0][attr];
+        }
+    }
+    
+    // Filter cards based on shared attributes
+    let availableCards = allCards.filter(card => {
+        // Exclude the correct card and the two shown cards
+        if (cardsEqual(card, correctCard) || 
+            cardsEqual(card, currentCards[0]) || 
+            cardsEqual(card, currentCards[1])) {
+            return false;
+        }
+        
+        // If there are shared attributes, the card must have those same attributes
+        for (let attr in sharedAttributes) {
+            if (card[attr] !== sharedAttributes[attr]) {
+                return false;
+            }
+        }
+        
+        return true;
+    });
     
     // Shuffle and take 11 random cards
     const shuffled = availableCards.sort(() => Math.random() - 0.5);
@@ -225,6 +254,25 @@ function drawCardSmall(card, elementId) {
     element.appendChild(svg);
 }
 
+// Draw a practice card
+function drawPracticeCard(card, elementId) {
+    const element = document.getElementById(elementId);
+    element.innerHTML = '';
+    
+    const svgNS = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(svgNS, 'svg');
+    svg.setAttribute('viewBox', '0 0 160 120');
+    svg.setAttribute('width', '140');
+    svg.setAttribute('height', '120');
+    
+    for (let i = 0; i < card.number; i++) {
+        const shape = createShape(card.shape, card.color, card.pattern, i, card.number);
+        svg.appendChild(shape);
+    }
+    
+    element.appendChild(svg);
+}
+
 // Get card description
 function getCardDescription(card) {
     return `${card.number} ${card.pattern} ${card.color} ${card.shape}${card.number > 1 ? 's' : ''}`;
@@ -272,6 +320,97 @@ function cardsEqual(card1, card2) {
            card1.pattern === card2.pattern;
 }
 
+// Find all valid sets in a collection of cards
+function findAllSets(cards) {
+    const sets = [];
+    for (let i = 0; i < cards.length - 2; i++) {
+        for (let j = i + 1; j < cards.length - 1; j++) {
+            for (let k = j + 1; k < cards.length; k++) {
+                if (isValidSet(cards[i], cards[j], cards[k])) {
+                    sets.push([cards[i], cards[j], cards[k]]);
+                }
+            }
+        }
+    }
+    return sets;
+}
+
+// Generate practice cards ensuring at least one valid set exists
+function generatePracticeCards(count) {
+    let attempts = 0;
+    const maxAttempts = 100;
+    
+    while (attempts < maxAttempts) {
+        const allCards = generateAllCards();
+        const shuffled = allCards.sort(() => Math.random() - 0.5);
+        const selectedCards = shuffled.slice(0, count);
+        
+        // Check if there's at least one valid set
+        const sets = findAllSets(selectedCards);
+        if (sets.length > 0) {
+            return selectedCards;
+        }
+        
+        attempts++;
+    }
+    
+    // Fallback: force create a set
+    const allCards = generateAllCards();
+    const shuffled = allCards.sort(() => Math.random() - 0.5);
+    const cards = shuffled.slice(0, count - 3);
+    
+    // Add a guaranteed set
+    const card1 = generateRandomCard();
+    const card2 = generateRandomCard();
+    const card3 = calculateCompletingCard(card1, card2);
+    
+    return [...cards, card1, card2, card3].sort(() => Math.random() - 0.5);
+}
+
+// Trigger confetti effect
+function triggerConfetti() {
+    if (!confettiEnabled) return;
+    
+    // Fire confetti from multiple angles for a nice effect
+    const duration = 2000;
+    const animationEnd = Date.now() + duration;
+    const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 10000 };
+
+    function randomInRange(min, max) {
+        return Math.random() * (max - min) + min;
+    }
+
+    const interval = setInterval(function() {
+        const timeLeft = animationEnd - Date.now();
+
+        if (timeLeft <= 0) {
+            return clearInterval(interval);
+        }
+
+        const particleCount = 50 * (timeLeft / duration);
+        
+        // Fire from left side
+        confetti({
+            ...defaults,
+            particleCount,
+            origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 }
+        });
+        
+        // Fire from right side
+        confetti({
+            ...defaults,
+            particleCount,
+            origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 }
+        });
+    }, 250);
+}
+
+// Toggle confetti setting
+function toggleConfetti() {
+    confettiEnabled = !confettiEnabled;
+    localStorage.setItem('confettiEnabled', confettiEnabled);
+}
+
 // Display multiple choice options
 function displayMultipleChoiceOptions() {
     const container = document.getElementById('multiple-choice-container');
@@ -316,6 +455,9 @@ function selectMultipleChoiceOption(index) {
         stats.correct++;
         
         allOptions[index].classList.add('correct');
+        
+        // Trigger confetti
+        triggerConfetti();
         
         // Update stats
         document.getElementById('correct-count').textContent = stats.correct;
@@ -440,6 +582,9 @@ function checkAnswer() {
         feedbackEl.className = 'feedback correct';
         stats.correct++;
         
+        // Trigger confetti
+        triggerConfetti();
+        
         // Update stats
         document.getElementById('correct-count').textContent = stats.correct;
         document.getElementById('incorrect-count').textContent = stats.incorrect;
@@ -516,6 +661,148 @@ function checkAnswer() {
     }
 }
 
+// Check if selected cards form a valid set
+function checkPracticeSet() {
+    const card1 = practiceCards[selectedPracticeCards[0]];
+    const card2 = practiceCards[selectedPracticeCards[1]];
+    const card3 = practiceCards[selectedPracticeCards[2]];
+    
+    const feedbackEl = document.getElementById('feedback');
+    const allContainers = document.querySelectorAll('.practice-card-container');
+    
+    if (isValidSet(card1, card2, card3)) {
+        feedbackEl.textContent = '✓ Valid Set! Excellent work!';
+        feedbackEl.className = 'feedback correct';
+        stats.correct++;
+        
+        // Trigger confetti
+        triggerConfetti();
+        
+        // Mark cards as correct
+        selectedPracticeCards.forEach(index => {
+            allContainers[index].classList.add('correct');
+            allContainers[index].classList.remove('selected');
+        });
+        
+        // Update stats
+        document.getElementById('correct-count').textContent = stats.correct;
+        
+        // Generate new game after delay
+        setTimeout(() => {
+            initializePracticeSet();
+        }, 2000);
+    } else {
+        feedbackEl.textContent = '✗ Not a valid set. Try again!';
+        feedbackEl.className = 'feedback incorrect';
+        stats.incorrect++;
+        
+        // Mark cards as incorrect
+        selectedPracticeCards.forEach(index => {
+            allContainers[index].classList.add('incorrect');
+            allContainers[index].classList.remove('selected');
+        });
+        
+        // Update stats
+        document.getElementById('incorrect-count').textContent = stats.incorrect;
+        
+        // Clear selection after animation
+        setTimeout(() => {
+            selectedPracticeCards.forEach(index => {
+                allContainers[index].classList.remove('incorrect');
+            });
+            selectedPracticeCards = [];
+            updateSelectedCount();
+            feedbackEl.textContent = '';
+            feedbackEl.className = 'feedback';
+        }, 1500);
+    }
+}
+
+// Clear practice card selection
+function clearPracticeSelection() {
+    const allContainers = document.querySelectorAll('.practice-card-container');
+    selectedPracticeCards.forEach(index => {
+        allContainers[index].classList.remove('selected');
+    });
+    selectedPracticeCards = [];
+    updateSelectedCount();
+}
+
+// Initialize practice set game
+function initializePracticeSet() {
+    practiceCards = generatePracticeCards(practiceCardCount);
+    selectedPracticeCards = [];
+    displayPracticeCards();
+    updateSelectedCount();
+    
+    // Clear feedback
+    document.getElementById('feedback').textContent = '';
+    document.getElementById('feedback').className = 'feedback';
+    document.getElementById('clear-selection-btn').style.display = 'none';
+}
+
+// Display practice cards
+function displayPracticeCards() {
+    const container = document.getElementById('practice-cards-display');
+    container.innerHTML = '';
+    
+    practiceCards.forEach((card, index) => {
+        const cardContainer = document.createElement('div');
+        cardContainer.className = 'practice-card-container';
+        cardContainer.setAttribute('data-index', index);
+        
+        const cardDiv = document.createElement('div');
+        cardDiv.className = 'practice-card';
+        cardDiv.id = `practice-card-${index}`;
+        
+        cardContainer.appendChild(cardDiv);
+        container.appendChild(cardContainer);
+        
+        // Draw the card
+        drawPracticeCard(card, `practice-card-${index}`);
+        
+        // Add click handler
+        cardContainer.addEventListener('click', () => selectPracticeCard(index));
+    });
+}
+
+// Handle practice card selection
+function selectPracticeCard(index) {
+    const cardContainer = document.querySelectorAll('.practice-card-container')[index];
+    const selectedIndex = selectedPracticeCards.indexOf(index);
+    
+    if (selectedIndex > -1) {
+        // Deselect
+        selectedPracticeCards.splice(selectedIndex, 1);
+        cardContainer.classList.remove('selected');
+    } else {
+        // Select (max 3)
+        if (selectedPracticeCards.length < 3) {
+            selectedPracticeCards.push(index);
+            cardContainer.classList.add('selected');
+        }
+    }
+    
+    updateSelectedCount();
+    
+    // Check when 3 cards are selected
+    if (selectedPracticeCards.length === 3) {
+        setTimeout(() => checkPracticeSet(), 300);
+    }
+}
+
+// Update selected count display
+function updateSelectedCount() {
+    document.getElementById('selected-count').textContent = selectedPracticeCards.length;
+    
+    const clearBtn = document.getElementById('clear-selection-btn');
+    if (selectedPracticeCards.length > 0) {
+        clearBtn.style.display = 'inline-block';
+    } else {
+        clearBtn.style.display = 'none';
+    }
+}
+
 // Start challenge mode
 function startChallenge(target = 10) {
     challengeMode = true;
@@ -563,6 +850,36 @@ function toggleMode() {
     newRound();
 }
 
+// Switch to trainer mode
+function switchToTrainerMode() {
+    practiceSetMode = false;
+    document.getElementById('trainer-mode-area').style.display = 'block';
+    document.getElementById('practice-set-area').style.display = 'none';
+    document.getElementById('text-input-area').style.display = multipleChoiceMode ? 'none' : 'flex';
+    document.getElementById('multiple-choice-area').style.display = multipleChoiceMode ? 'block' : 'none';
+    document.getElementById('trainer-mode-btn').classList.add('active');
+    document.getElementById('practice-set-mode-btn').classList.remove('active');
+    
+    // Clear feedback
+    document.getElementById('feedback').textContent = '';
+    document.getElementById('feedback').className = 'feedback';
+    
+    newRound();
+}
+
+// Switch to practice set mode
+function switchToPracticeSetMode() {
+    practiceSetMode = true;
+    document.getElementById('trainer-mode-area').style.display = 'none';
+    document.getElementById('practice-set-area').style.display = 'block';
+    document.getElementById('text-input-area').style.display = 'none';
+    document.getElementById('multiple-choice-area').style.display = 'none';
+    document.getElementById('trainer-mode-btn').classList.remove('active');
+    document.getElementById('practice-set-mode-btn').classList.add('active');
+    
+    initializePracticeSet();
+}
+
 // Event listeners
 document.getElementById('submit-btn').addEventListener('click', checkAnswer);
 document.getElementById('new-cards-btn').addEventListener('click', newRound);
@@ -574,6 +891,15 @@ document.getElementById('answer').addEventListener('keypress', (e) => {
     }
 });
 document.getElementById('toggle-mode-btn').addEventListener('click', toggleMode);
+document.getElementById('clear-selection-btn').addEventListener('click', clearPracticeSelection);
+document.getElementById('trainer-mode-btn').addEventListener('click', switchToTrainerMode);
+document.getElementById('practice-set-mode-btn').addEventListener('click', switchToPracticeSetMode);
+document.getElementById('new-practice-game-btn').addEventListener('click', initializePracticeSet);
+document.getElementById('card-count').addEventListener('change', (e) => {
+    practiceCardCount = parseInt(e.target.value);
+    initializePracticeSet();
+});
+document.getElementById('confetti-toggle').addEventListener('change', toggleConfetti);
 
 // Initialize
 newRound();
@@ -585,3 +911,6 @@ if (bestTime) {
 if (bestTime5) {
     document.getElementById('best-time-5').textContent = bestTime5 + 's';
 }
+
+// Set initial confetti toggle state
+document.getElementById('confetti-toggle').checked = confettiEnabled;
