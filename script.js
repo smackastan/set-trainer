@@ -800,6 +800,7 @@ function initializePracticeSet() {
     selectedPracticeCards = [];
     displayPracticeCards();
     updateSelectedCount();
+    updateSetCounter();
     
     // Clear feedback
     document.getElementById('feedback').textContent = '';
@@ -866,6 +867,19 @@ function updateSelectedCount() {
         clearBtn.style.display = 'inline-block';
     } else {
         clearBtn.style.display = 'none';
+    }
+}
+
+// Update set counter display
+function updateSetCounter() {
+    const allSets = findAllSets(practiceCards);
+    const setCount = allSets.length;
+    const setCounter = document.getElementById('set-counter');
+    
+    if (setCount === 1) {
+        setCounter.setAttribute('title', `${setCount} set available`);
+    } else {
+        setCounter.setAttribute('title', `${setCount} sets available`);
     }
 }
 

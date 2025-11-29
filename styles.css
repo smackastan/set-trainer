@@ -665,3 +665,72 @@ svg {
     border-color: #667eea;
     background: #667eea15;
 }
+
+/* Set Counter (hover to reveal) */
+.set-counter-container {
+    display: inline-block;
+    margin-left: 15px;
+}
+
+.set-counter {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    background: #667eea;
+    border-radius: 50%;
+    cursor: help;
+    transition: all 0.3s;
+    font-size: 1.2em;
+}
+
+.set-counter:hover {
+    transform: scale(1.1);
+    background: #5568d3;
+}
+
+#set-counter-icon {
+    color: white;
+    font-size: 1em;
+}
+
+.set-counter::after {
+    content: attr(title);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%) translateY(-8px);
+    background: #333;
+    color: white;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 0.9em;
+    font-weight: 600;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s, transform 0.3s;
+    z-index: 1000;
+}
+
+.set-counter::before {
+    content: '';
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%) translateY(-2px);
+    border: 6px solid transparent;
+    border-top-color: #333;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s, transform 0.3s;
+    z-index: 1000;
+}
+
+.set-counter:hover::after,
+.set-counter:hover::before {
+    opacity: 1;
+    transform: translateX(-50%) translateY(-12px);
+}
