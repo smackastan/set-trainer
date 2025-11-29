@@ -45,6 +45,9 @@ let bestTime5 = localStorage.getItem('bestTime5') ? parseFloat(localStorage.getI
 // Confetti setting
 let confettiEnabled = localStorage.getItem('confettiEnabled') !== 'false'; // Default to true
 
+// Autoload setting
+let autoloadEnabled = localStorage.getItem('autoloadEnabled') !== 'false'; // Default to true
+
 // Generate a random card
 function generateRandomCard() {
     return {
@@ -462,6 +465,12 @@ function toggleConfetti() {
     localStorage.setItem('confettiEnabled', confettiEnabled);
 }
 
+// Toggle autoload setting
+function toggleAutoload() {
+    autoloadEnabled = !autoloadEnabled;
+    localStorage.setItem('autoloadEnabled', autoloadEnabled);
+}
+
 // Display multiple choice options
 function displayMultipleChoiceOptions() {
     const container = document.getElementById('multiple-choice-container');
@@ -556,10 +565,12 @@ function selectMultipleChoiceOption(index) {
             }
         }
         
-        // Generate new cards after a short delay
-        setTimeout(() => {
-            newRound();
-        }, challengeMode ? 800 : 1500);
+        // Generate new cards after a short delay (only if autoload is enabled)
+        if (autoloadEnabled) {
+            setTimeout(() => {
+                newRound();
+            }, challengeMode ? 800 : 1500);
+        }
     } else {
         feedbackEl.textContent = '✗ Incorrect. Try again!';
         feedbackEl.className = 'feedback incorrect';
@@ -683,10 +694,12 @@ function checkAnswer() {
             }
         }
         
-        // Generate new cards after a short delay
-        setTimeout(() => {
-            newRound();
-        }, challengeMode ? 800 : 1500);
+        // Generate new cards after a short delay (only if autoload is enabled)
+        if (autoloadEnabled) {
+            setTimeout(() => {
+                newRound();
+            }, challengeMode ? 800 : 1500);
+        }
     } else {
         feedbackEl.textContent = '✗ Incorrect. Here\'s the correct answer:';
         feedbackEl.className = 'feedback incorrect';
@@ -738,10 +751,12 @@ function checkPracticeSet() {
         // Update stats
         document.getElementById('correct-count').textContent = stats.correct;
         
-        // Generate new game after delay
-        setTimeout(() => {
-            initializePracticeSet();
-        }, 2000);
+        // Generate new game after delay (only if autoload is enabled)
+        if (autoloadEnabled) {
+            setTimeout(() => {
+                initializePracticeSet();
+            }, 2000);
+        }
     } else {
         feedbackEl.textContent = '✗ Not a valid set. Try again!';
         feedbackEl.className = 'feedback incorrect';
@@ -966,6 +981,45 @@ document.getElementById('card-count').addEventListener('change', (e) => {
     initializePracticeSet();
 });
 document.getElementById('confetti-toggle').addEventListener('change', toggleConfetti);
+document.getElementById('autoload-toggle').addEventListener('change', toggleAutoload);
+
+// Global keyboard listener for manual progression when autoload is disabled
+document.addEventListener('keydown', (e) => {
+    // Only allow manual progression if autoload is disabled and not typing in input
+    if (!autoloadEnabled && e.target.id !== 'answer') {
+        if (e.key === ' ' || e.key === 'Enter') {
+            e.preventDefault();
+            if (practiceSetMode) {
+                initializePracticeSet();
+            } else {
+                newRound();
+            }
+        }
+    }
+});
+
+// Allow clicking anywhere to advance when autoload is disabled
+document.addEventListener('click', (e) => {
+    // Only advance if autoload is disabled and not clicking on interactive elements
+    if (!autoloadEnabled && 
+        !e.target.closest('input') && 
+        !e.target.closest('button') && 
+        !e.target.closest('select') &&
+        !e.target.closest('.multiple-choice-option') &&
+        !e.target.closest('.practice-card-container')) {
+        
+        const feedback = document.getElementById('feedback');
+        const hasCorrectFeedback = feedback.className.includes('correct');
+        
+        if (hasCorrectFeedback) {
+            if (practiceSetMode) {
+                initializePracticeSet();
+            } else {
+                newRound();
+            }
+        }
+    }
+});
 
 // Difficulty checkbox listeners
 document.getElementById('diff-easy').addEventListener('change', () => {
@@ -998,3 +1052,6 @@ if (bestTime5) {
 
 // Set initial confetti toggle state
 document.getElementById('confetti-toggle').checked = confettiEnabled;
+
+// Set initial autoload toggle state
+document.getElementById('autoload-toggle').checked = autoloadEnabled;
