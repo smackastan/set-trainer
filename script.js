@@ -32,6 +32,7 @@ let practiceSetMode = false;
 let practiceCards = [];
 let selectedPracticeCards = [];
 let practiceCardCount = 9;
+let allowedDifficulties = [1, 2, 3, 4]; // Array of allowed difficulty levels
 
 // Challenge mode variables
 let challengeMode = false;
@@ -335,7 +336,29 @@ function findAllSets(cards) {
     return sets;
 }
 
-// Generate practice cards ensuring at least one valid set exists
+// Calculate the difficulty of a set (number of attributes that are all-different)
+function getSetDifficulty(card1, card2, card3) {
+    let diffCount = 0;
+    for (let attr in card1) {
+        const vals = [card1[attr], card2[attr], card3[attr]];
+        const uniqueVals = new Set(vals);
+        // If all different, increment difficulty
+        if (uniqueVals.size === 3) {
+            diffCount++;
+        }
+    }
+    return diffCount;
+}
+
+// Filter sets by allowed difficulties
+function filterSetsByDifficulty(sets, allowedDifficulties) {
+    return sets.filter(set => {
+        const difficulty = getSetDifficulty(set[0], set[1], set[2]);
+        return allowedDifficulties.includes(difficulty);
+    });
+}
+
+// Generate practice cards ensuring at least one valid set exists with allowed difficulty
 function generatePracticeCards(count) {
     let attempts = 0;
     const maxAttempts = 100;
@@ -345,26 +368,54 @@ function generatePracticeCards(count) {
         const shuffled = allCards.sort(() => Math.random() - 0.5);
         const selectedCards = shuffled.slice(0, count);
         
-        // Check if there's at least one valid set
+        // Check if there's at least one valid set with allowed difficulty
         const sets = findAllSets(selectedCards);
-        if (sets.length > 0) {
+        const validSets = filterSetsByDifficulty(sets, allowedDifficulties);
+        if (validSets.length > 0) {
             return selectedCards;
         }
         
         attempts++;
     }
     
-    // Fallback: force create a set
+    // Fallback: force create a set with allowed difficulty
     const allCards = generateAllCards();
     const shuffled = allCards.sort(() => Math.random() - 0.5);
     const cards = shuffled.slice(0, count - 3);
     
-    // Add a guaranteed set
+    // Create a guaranteed set with a random allowed difficulty
+    const targetDifficulty = allowedDifficulties[Math.floor(Math.random() * allowedDifficulties.length)];
+    const guaranteedSet = generateSetWithDifficulty(targetDifficulty);
+    
+    return [...cards, ...guaranteedSet].sort(() => Math.random() - 0.5);
+}
+
+// Generate a set with a specific difficulty level
+function generateSetWithDifficulty(difficulty) {
     const card1 = generateRandomCard();
-    const card2 = generateRandomCard();
+    const card2 = {};
+    
+    // Determine which attributes should be all-different vs all-same
+    const attributes = ['number', 'color', 'shape', 'pattern'];
+    const shuffledAttrs = attributes.sort(() => Math.random() - 0.5);
+    const diffAttributes = shuffledAttrs.slice(0, difficulty);
+    
+    // Build card2 based on difficulty
+    for (let attr of attributes) {
+        if (diffAttributes.includes(attr)) {
+            // Make it different from card1
+            const options = ATTRIBUTES[attr].filter(val => val !== card1[attr]);
+            card2[attr] = options[Math.floor(Math.random() * options.length)];
+        } else {
+            // Make it same as card1
+            card2[attr] = card1[attr];
+        }
+    }
+    
+    // Calculate completing card
     const card3 = calculateCompletingCard(card1, card2);
     
-    return [...cards, card1, card2, card3].sort(() => Math.random() - 0.5);
+    return [card1, card2, card3];
 }
 
 // Trigger confetti effect
@@ -880,6 +931,21 @@ function switchToPracticeSetMode() {
     initializePracticeSet();
 }
 
+// Update allowed difficulties based on checkbox state
+function updateAllowedDifficulties() {
+    allowedDifficulties = [];
+    if (document.getElementById('diff-easy').checked) allowedDifficulties.push(1);
+    if (document.getElementById('diff-medium').checked) allowedDifficulties.push(2);
+    if (document.getElementById('diff-hard').checked) allowedDifficulties.push(3);
+    if (document.getElementById('diff-impossible').checked) allowedDifficulties.push(4);
+    
+    // Ensure at least one difficulty is selected
+    if (allowedDifficulties.length === 0) {
+        allowedDifficulties = [1]; // Default to easy
+        document.getElementById('diff-easy').checked = true;
+    }
+}
+
 // Event listeners
 document.getElementById('submit-btn').addEventListener('click', checkAnswer);
 document.getElementById('new-cards-btn').addEventListener('click', newRound);
@@ -900,6 +966,24 @@ document.getElementById('card-count').addEventListener('change', (e) => {
     initializePracticeSet();
 });
 document.getElementById('confetti-toggle').addEventListener('change', toggleConfetti);
+
+// Difficulty checkbox listeners
+document.getElementById('diff-easy').addEventListener('change', () => {
+    updateAllowedDifficulties();
+    initializePracticeSet();
+});
+document.getElementById('diff-medium').addEventListener('change', () => {
+    updateAllowedDifficulties();
+    initializePracticeSet();
+});
+document.getElementById('diff-hard').addEventListener('change', () => {
+    updateAllowedDifficulties();
+    initializePracticeSet();
+});
+document.getElementById('diff-impossible').addEventListener('change', () => {
+    updateAllowedDifficulties();
+    initializePracticeSet();
+});
 
 // Initialize
 newRound();
